@@ -498,7 +498,7 @@ def _initialise(bot):
         tg_bot.add_command("/tldr", tg_command_tldr)
 
         loop = asyncio.get_event_loop()
-        loop.create_task(tg_bot.messageLoop())
+        loop.create_task(tg_bot.message_loop())
 
 
 @command.register(admin=True)
