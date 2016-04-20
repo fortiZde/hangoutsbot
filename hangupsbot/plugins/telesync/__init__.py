@@ -464,6 +464,17 @@ def tg_command_tldr(bot, chat_id, args):
         except KeyError as ke:
             yield from bot.sendMessage(chat_id, "TLDR plugin is not active. KeyError: {e}".format(e=ke))
 
+@asyncio.coroutine
+def tg_command_ao(bot, chat_id, args):
+    params = args['params']
+
+    tg2ho_dict = tg_bot.ho_bot.memory.get_by_path(['telesync'])['tg2ho']
+    if len(params) == 0:
+        try:
+            yield from bot.sendMessage(chat_id, "Was hier geschrieben wird hinter /ao bleibt auch hier!")
+        except KeyError as ke:
+            yield from bot.sendMessage(chat_id, "AO plugin is not active. KeyError: {e}".format(e=ke))
+
 
 # TELEGRAM DEFINITIONS END
 
@@ -499,7 +510,7 @@ def _initialise(bot):
         tg_bot.add_command("/addadmin", tg_command_add_bot_admin)
         tg_bot.add_command("/removeadmin", tg_command_remove_bot_admin)
         tg_bot.add_command("/tldr", tg_command_tldr)
-
+        tg_bot.add_command("/ao", tg_command_ao  tg_bot.add_command("/ao", tg_command_ao))
         loop = asyncio.get_event_loop()
         loop.create_task(tg_bot.message_loop())
 
