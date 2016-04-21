@@ -107,12 +107,25 @@ class TelegramBot(telepot.async.Bot):
         tg_admins = self.ho_bot.config.get_by_path(['telesync'])['admins']
         return True if str(user_id) in tg_admins else False
 
+    def is_silentmode(self):
+        return self.ho_bot.config.get_by_path(['telesync'])['silentmode']
+
+    def is_blacklisted_word(self, msg):
+        tg_blacklisted_words = self.ho_bot.config.get_by_path(['telesync'])['blacklisted_words']
+        msg_lower = msg.lower()
+        for word in tg_blacklisted_words:
+            if word.lower() in msg_lower:
+                return True
+        return False
+
+
     @asyncio.coroutine
     def handle(self, msg):
         flavor = telepot.flavor(msg)
 
         if flavor == "chat":  # chat message
             content_type, chat_type, chat_id = telepot.glance(msg)
+            silentmode = TelegramBot.is_silentmode(self)
             if content_type == 'text':
                 if TelegramBot.is_command(msg):  # bot command
                     cmd, params = TelegramBot.parse_command(msg['text'])
@@ -121,8 +134,11 @@ class TelegramBot(telepot.async.Bot):
                     if cmd in self.commands:
                         yield from self.commands[cmd](self, chat_id, args)
                     else:
-                        yield from self.sendMessage(chat_id, "Unknown command: {cmd}".format(cmd=cmd))
-
+                        if silentmode == "false":
+                            yield from self.sendMessage(chat_id, "Unknown command: {cmd}".format(cmd=cmd))
+                elif TelegramBot.is_blacklisted_word(self, msg['text']):
+                    if silentmode == "false":
+                        yield from self.sendMessage(chat_id, "Blacklisted word gefunden. Der Text wird nicht synchronisiert")
                 else:  # plain text message
                     yield from self.onMessageCallback(self, chat_id, msg)
 
@@ -419,6 +435,69 @@ def tg_command_add_bot_admin(bot, chat_id, args):
 
 
 @asyncio.coroutine
+def tg_command_add_blacklisted_word(bot, chat_id, args):
+    user_id = args['user_id']
+    params = args['params']
+    chat_type = args['chat_type']
+
+    if 'private' != chat_type:
+        yield from bot.sendMessage(chat_id, "This command must be invoked in private chat")
+        return
+
+    if not bot.is_telegram_admin(user_id):
+        yield from bot.sendMessage(chat_id, "Only admins can do that")
+        return
+
+    if len(params) != 1:
+        yield from bot.sendMessage(chat_id, "Illegal or Missing arguments!!!")
+        return
+
+    text = ""
+
+    tg_conf = bot.ho_bot.config.get_by_path(['telesync'])
+    if str(params[0]) not in tg_conf['blacklisted_words']:
+        tg_conf['blacklisted_words'].append(str(params[0]))
+        bot.ho_bot.config.set_by_path(['telesync'], tg_conf)
+        text = "added word to blacklist"
+    else:
+        text = "word is already blacklisted"
+
+    yield from bot.sendMessage(chat_id, text)
+
+
+@asyncio.coroutine
+def tg_command_remove_blacklisted_word(bot, chat_id, args):
+    user_id = args['user_id']
+    params = args['params']
+    chat_type = args['chat_type']
+
+    if 'private' != chat_type:
+        yield from bot.sendMessage(chat_id, "This command must be invoked in private chat")
+        return
+
+    if not bot.is_telegram_admin(user_id):
+        yield from bot.sendMessage(chat_id, "Only admins can do that")
+        return
+
+    if len(params) != 1:
+        yield from bot.sendMessage(chat_id, "Illegal or Missing arguments!!!")
+        return
+
+    target_user = str(params[0])
+
+    text = ""
+    tg_conf = bot.ho_bot.config.get_by_path(['telesync'])
+    if target_user in tg_conf['blacklisted_words']:
+        tg_conf['blacklisted_words'].remove(target_user)
+        bot.ho_bot.config.set_by_path(['telesync'], tg_conf)
+        text = "removed word from blacklist"
+    else:
+        text = "word is not blacklisted"
+    
+    yield from bot.sendMessage(chat_id, text)
+
+
+@asyncio.coroutine
 def tg_command_remove_bot_admin(bot, chat_id, args):
     user_id = args['user_id']
     params = args['params']
@@ -464,6 +543,7 @@ def tg_command_tldr(bot, chat_id, args):
         except KeyError as ke:
             yield from bot.sendMessage(chat_id, "TLDR plugin is not active. KeyError: {e}".format(e=ke))
 
+
 @asyncio.coroutine
 def tg_command_ao(bot, chat_id, args):
     params = args['params']
@@ -475,6 +555,41 @@ def tg_command_ao(bot, chat_id, args):
         except KeyError as ke:
             yield from bot.sendMessage(chat_id, "AO plugin is not active. KeyError: {e}".format(e=ke))
 
+
+@asyncio.coroutine
+def tg_command_silentmode(bot, chat_id, args):
+    user_id = args['user_id']
+    params = args['params']
+    chat_type = args['chat_type']
+    silentmode = bot.is_silentmode()
+    enable_words = ["on", "1", "enable", "true"]
+    disable_words = ["of", "0", "disable", "false"]
+
+    if 'private' != chat_type:
+        yield from bot.sendMessage(chat_id, "This command must be invoked in private chat")
+        return
+
+    if not bot.is_telegram_admin(user_id):
+        yield from bot.sendMessage(chat_id, "Only admins can do that")
+        return
+
+    if len(params) != 1:
+        yield from bot.sendMessage(chat_id, "Silentmode is: {silentmode}".format(silentmode=silentmode))
+        return
+
+    sm = str(params[0])
+
+    text = ""
+    tg_conf = bot.ho_bot.config.get_by_path(['telesync'])
+    if sm in enable_words:
+        bot.ho_bot.config.set_by_path(['telesync', 'silentmode'], "true")
+        text = "Silentmode enabled!"
+    elif sm in disable_words:
+        bot.ho_bot.config.set_by_path(['telesync', 'silentmode'], "false")
+        text = "Silentmode disabled!"
+    else:
+        text = "unable to set new silentmode!"
+    yield from bot.sendMessage(chat_id, text)
 
 # TELEGRAM DEFINITIONS END
 
@@ -510,7 +625,10 @@ def _initialise(bot):
         tg_bot.add_command("/addadmin", tg_command_add_bot_admin)
         tg_bot.add_command("/removeadmin", tg_command_remove_bot_admin)
         tg_bot.add_command("/tldr", tg_command_tldr)
-        tg_bot.add_command("/ao", tg_command_ao  tg_bot.add_command("/ao", tg_command_ao))
+        tg_bot.add_command("/ao", tg_command_ao)
+        tg_bot.add_command("/addblacklist", tg_command_add_blacklisted_word)
+        tg_bot.add_command("/removeblacklist", tg_command_remove_blacklisted_word)
+        tg_bot.add_command("/silentmode", tg_command_silentmode)
         loop = asyncio.get_event_loop()
         loop.create_task(tg_bot.message_loop())
 
