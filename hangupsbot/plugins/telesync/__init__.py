@@ -230,7 +230,7 @@ def tg_on_message(tg_bot, tg_chat_id, msg):
     tg2ho_dict = tg_bot.ho_bot.memory.get_by_path(['telesync'])['tg2ho']
 
     if str(tg_chat_id) in tg2ho_dict:
-        text = "<b>{uname}</b> <b>({gname})</b>: {text}".format(uname=tg_util_sync_get_user_name(msg),
+        text = "<b>{uname}</b>: {text}".format(uname=tg_util_sync_get_user_name(msg),
                                                                 gname=tg_util_get_group_name(msg),
                                                                 text=msg['text'])
 
@@ -625,7 +625,6 @@ def _initialise(bot):
         tg_bot.add_command("/addadmin", tg_command_add_bot_admin)
         tg_bot.add_command("/removeadmin", tg_command_remove_bot_admin)
         tg_bot.add_command("/tldr", tg_command_tldr)
-        tg_bot.add_command("/ao", tg_command_ao)
         tg_bot.add_command("/addblacklist", tg_command_add_blacklisted_word)
         tg_bot.add_command("/removeblacklist", tg_command_remove_blacklisted_word)
         tg_bot.add_command("/silentmode", tg_command_silentmode)
@@ -716,7 +715,7 @@ def _on_hangouts_message(bot, event, command=""):
 
     if event.conv_id in ho2tg_dict:
         user_gplus = 'https://plus.google.com/u/0/{uid}/about'.format(uid=event.user_id.chat_id)
-        text = '<a href="{user_gplus}">{uname}</a> <b>({gname})</b>: {text}'.format(uname=event.user.full_name,
+        text = '<a href="{user_gplus}">{uname}</a>: {text}'.format(uname=event.user.full_name,
                                                                                     user_gplus=user_gplus,
                                                                                     gname=event.conv.name,
                                                                                     text=sync_text)
