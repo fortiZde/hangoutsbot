@@ -1,5 +1,5 @@
 # BOT DEPENDENCIES #
-git+https://github.com/hangoutsbot/hangups.git
+git+https://github.com/fortiZde/hangups.git
 appdirs
 asyncio
 aiohttp>=1.0,<1.1
